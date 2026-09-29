@@ -1,4 +1,3 @@
-Copy
 from sqlalchemy.orm import DeclarativeBase
 
 
