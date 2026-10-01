@@ -1,12 +1,14 @@
 from fastapi import FastAPI
 
-from app.api.users import router as users_router
-from app.api.db_demo import router as db_demo_router
+from app.api.auth.auth import router as auth_router
+from app.api.fee_schedule.fee_schedule import router as fee_schedule_router
+from app.api.user.user import router as user_router
 
 app = FastAPI(title="My API")
 
-app.include_router(users_router, prefix="/api/v1")
-app.include_router(db_demo_router, prefix="/api/v1")
+app.include_router(user_router, prefix="/api/v1")
+app.include_router(auth_router, prefix="/api/v1")
+app.include_router(fee_schedule_router, prefix="/api/v1")
 
 
 @app.get("/health")
