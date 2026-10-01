@@ -1,0 +1,16 @@
+{
+  "usersByMonth": [
+    { "month": "May", "users": 842 },
+    { "month": "Jun", "users": 910 },
+    { "month": "Jul", "users": 988 },
+    { "month": "Aug", "users": 1104 },
+    { "month": "Sep", "users": 1240 },
+    { "month": "Oct", "users": 1386 }
+  ],
+  "serviceFeeCompare": [
+    { "bank": "David Bank", "percentFee": 1.6 },
+    { "bank": "Alex Bank", "percentFee": 2.1 },
+    { "bank": "Bristol Bank", "percentFee": 2.3 },
+    { "bank": "Sunrise Bank", "percentFee": 2.8 }
+  ]
+}

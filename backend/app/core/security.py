@@ -6,7 +6,7 @@ import jwt
 from app.core.config import settings
 
 ALGORITHM = "HS256"
-ACCESS_TOKEN_MINUTES = 60
+ACCESS_TOKEN_MINUTES = 60*9 #9hours
 jwt_secret = settings.jwt_secret
 
 

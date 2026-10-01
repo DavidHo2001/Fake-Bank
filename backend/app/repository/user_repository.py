@@ -1,4 +1,4 @@
-from sqlalchemy import select
+from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
 from app.models.user import User
@@ -17,3 +17,9 @@ class UserRepository:
 
     def add(self, user: User) -> None:
         self.db.add(user)
+
+    def find_page(self, page: int, page_size: int) -> tuple[list[User], int]:
+        total = self.db.scalar(select(func.count()).select_from(User)) or 0
+        offset = (page - 1) * page_size
+        statement = select(User).order_by(User.id.desc()).limit(page_size).offset(offset)
+        return list(self.db.scalars(statement).all()), total
