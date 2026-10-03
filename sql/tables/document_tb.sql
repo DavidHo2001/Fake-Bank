@@ -28,6 +28,7 @@ CREATE TABLE IF NOT EXISTS document_chunk_tb (
     id BIGINT GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
     document_id BIGINT NOT NULL REFERENCES document_tb (id),
     chunk_index INTEGER NOT NULL,
+    embedding VECTOR(384),
     section_path TEXT NOT NULL,
     content TEXT NOT NULL,
     token_count INTEGER,

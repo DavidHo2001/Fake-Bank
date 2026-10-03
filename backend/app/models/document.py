@@ -2,6 +2,7 @@ from datetime import date, datetime
 
 from sqlalchemy import BigInteger, CheckConstraint, Date, DateTime, ForeignKey, Identity, Integer, Text, UniqueConstraint, func
 from sqlalchemy.orm import Mapped, mapped_column
+from pgvector.sqlalchemy import Vector
 
 from app.db.base import Base
 
@@ -39,6 +40,7 @@ class DocumentChunk(Base):
     id: Mapped[int] = mapped_column(BigInteger, Identity(always=True), primary_key=True)
     document_id: Mapped[int] = mapped_column(ForeignKey("document_tb.id"))
     chunk_index: Mapped[int] = mapped_column(Integer)
+    embedding: Mapped[list[float] | None] = mapped_column(Vector(384))
     section_path: Mapped[str] = mapped_column(Text)
     content: Mapped[str] = mapped_column(Text)
     token_count: Mapped[int | None] = mapped_column(Integer)
