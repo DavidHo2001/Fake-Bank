@@ -6,6 +6,8 @@ class Settings(BaseSettings):
     jwt_secret: str
     model_config = SettingsConfigDict(env_file=".env")
     embedding_model_name: str = "sentence-transformers/paraphrase-multilingual-MiniLM-L12-v2"
+    openrouter_api_key: str
+    openrouter_model_name: str = "qwen/qwen3.5-flash-02-23"
 
 
 settings = Settings()

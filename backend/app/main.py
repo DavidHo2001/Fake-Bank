@@ -5,16 +5,24 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 
 from app.core.embedding import load_embedding_model
+from app.core.openrouter_client import load_http_client, close_http_client
 from app.api.auth.auth import router as auth_router
 from app.api.document.document import router as document_router
 from app.api.fee_schedule.fee_schedule import router as fee_schedule_router
 from app.api.transaction.transaction import router as transaction_router
 from app.api.user.user import router as user_router
+from app.db.session import engine
 
 @asynccontextmanager
 async def lifespan(_app: FastAPI):
-    load_embedding_model()
-    yield
+    try:
+        load_embedding_model()
+        load_http_client()
+        yield
+    finally:
+        engine.dispose()
+        close_http_client()
+
 
 app = FastAPI(title="David Bank", version="1.0.0", docs_url=None, redoc_url=None, lifespan=lifespan)
 
