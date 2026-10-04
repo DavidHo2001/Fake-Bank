@@ -1,9 +1,12 @@
-from fastapi import APIRouter, Depends, Query
+from datetime import date
+from typing import Annotated
+from fastapi import APIRouter, Depends, Query, Form
 
 from app.api.deps import get_current_user
 from app.api.document.document_deps import get_document_service
 from app.dto.document_dto import DocumentDto
 from app.dto.generic import GenericResponse, Page, ok
+from app.read_models.chunk_search_result import ChunkSearchResult
 from app.service.document_service import DocumentService
 
 router = APIRouter(
@@ -20,3 +23,11 @@ def list_documents(
     document_service: DocumentService = Depends(get_document_service),
 ) -> GenericResponse[Page[DocumentDto]]:
     return ok(document_service.list_documents(page, page_size))
+
+@router.post("/search", response_model=GenericResponse[list[ChunkSearchResult]])
+def search_similar_chunks(
+    question: Annotated[str, Form()],
+    effective_at: Annotated[date, Form()],
+    document_service: DocumentService = Depends(get_document_service),
+) -> GenericResponse[list[ChunkSearchResult]]:
+    return ok(document_service.search_similar_chunks(question, effective_at))

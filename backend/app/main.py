@@ -1,15 +1,22 @@
+from contextlib import asynccontextmanager
 from fastapi import FastAPI, HTTPException
 from fastapi.exceptions import RequestValidationError
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 
+from app.core.embedding import load_embedding_model
 from app.api.auth.auth import router as auth_router
 from app.api.document.document import router as document_router
 from app.api.fee_schedule.fee_schedule import router as fee_schedule_router
 from app.api.transaction.transaction import router as transaction_router
 from app.api.user.user import router as user_router
 
-app = FastAPI(title="David Bank")
+@asynccontextmanager
+async def lifespan(_app: FastAPI):
+    load_embedding_model()
+    yield
+
+app = FastAPI(title="David Bank", version="1.0.0", docs_url=None, redoc_url=None, lifespan=lifespan)
 
 app.add_middleware(
     CORSMiddleware,

@@ -1,11 +1,15 @@
+from datetime import date
+from app.core.config import settings
 from app.dto.document_dto import DocumentDto
 from app.dto.generic import Page
 from app.repository.document_repository import DocumentRepository
-
+from app.read_models.chunk_search_result import ChunkSearchResult
+from sentence_transformers import SentenceTransformer
 
 class DocumentService:
-    def __init__(self, repository: DocumentRepository) -> None:
+    def __init__(self, repository: DocumentRepository, embedding_model: SentenceTransformer) -> None:
         self.repository = repository
+        self.embedding_model = embedding_model
 
     def list_documents(self, page: int, page_size: int) -> Page[DocumentDto]:
         rows, total = self.repository.find_page(page, page_size)
@@ -25,3 +29,9 @@ class DocumentService:
                 )
             )
         return Page(items=documents, total=total, page=page, page_size=page_size)
+        
+    def search_similar_chunks(self, question: str, effective_at: date, limit: int = 5
+        ) -> list[ChunkSearchResult]:
+        model = self.embedding_model
+        question_vector = model.encode([question], normalize_embeddings=True)[0].tolist()
+        return self.repository.search_similar_chunks(question_vector, effective_at, limit)
