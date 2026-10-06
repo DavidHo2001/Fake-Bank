@@ -15,3 +15,7 @@ class DocumentDto(BaseModel):
     effective_to: date | None
     source_path: str
     created_at: datetime
+    
+class QuestionRequest(BaseModel):
+    question: str
+    effective_at: date | None = None

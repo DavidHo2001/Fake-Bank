@@ -20,6 +20,9 @@ class TransactionDto(BaseModel):
     gross_currency: str
     settlement_currency: str
     settlement_gross: Decimal
+    mid_rate: Decimal
+    fx_markup_bps: int
+    percent_rate: Decimal
     total_fee: Decimal
     expected_net: Decimal
     settled_amount: Decimal | None

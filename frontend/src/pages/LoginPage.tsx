@@ -3,7 +3,7 @@ import { useState, type FormEvent } from 'react'
 import { Navigate, useNavigate } from 'react-router-dom'
 import logo from '../assets/DavidBank.png'
 import { api, errorMessage, type Envelope } from '../api/client'
-import { loadSession, saveSession } from '../auth/session'
+import { useSession } from '../auth/session'
 
 type LoginData = {
   access_token: string
@@ -17,11 +17,12 @@ type LoginData = {
 
 export function LoginPage() {
   const navigate = useNavigate()
+  const { session, saveSession } = useSession()
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
   const [message, setMessage] = useState('')
 
-  if (loadSession()) {
+  if (session) {
     return <Navigate to="/home" replace />
   }
 

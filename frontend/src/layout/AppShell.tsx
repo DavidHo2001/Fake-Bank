@@ -3,11 +3,11 @@ import LogoutIcon from '@mui/icons-material/Logout'
 import { AppBar, Box, Button, IconButton, Toolbar, Typography } from '@mui/material'
 import { Link as RouterLink, Outlet, useNavigate } from 'react-router-dom'
 import logo from '../assets/DavidBank-Icon.png'
-import { clearSession, loadSession } from '../auth/session'
+import { useSession } from '../auth/session'
 
 export function AppShell() {
   const navigate = useNavigate()
-  const session = loadSession()
+  const { session, clearSession } = useSession()
 
   function logout() {
     clearSession()

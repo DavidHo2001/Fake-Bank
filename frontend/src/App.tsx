@@ -1,5 +1,5 @@
 import { Navigate, Route, Routes } from 'react-router-dom'
-import { loadSession } from './auth/session'
+import { useSession } from './auth/session'
 import { AppShell } from './layout/AppShell'
 import { FeeSchedulePage } from './pages/FeeSchedulePage'
 import { HomePage } from './pages/HomePage'
@@ -7,7 +7,8 @@ import { LoginPage } from './pages/LoginPage'
 import { TransactionPage } from './pages/TransactionPage'
 
 function RequireAuth() {
-  if (!loadSession()) {
+  const { session } = useSession()
+  if (!session) {
     return <Navigate to="/" replace />
   }
   return <AppShell />

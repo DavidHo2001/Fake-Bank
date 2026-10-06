@@ -62,3 +62,36 @@ class TransactionRepository:
             (txn, gateway_name, fee_version_code, owner_display_name, parent_txn_ref, settlement_ref)
             for txn, gateway_name, fee_version_code, owner_display_name, parent_txn_ref, settlement_ref in rows
         ], total
+
+    def find_by_txn_refs(
+        self,
+        owner_user_id: int | None,
+        txn_refs: list[str],
+    ) -> list[TransactionRow]:
+        if not txn_refs:
+            return []
+        parent = aliased(Transaction)
+        statement = (
+            select(
+                Transaction,
+                PaymentGateway.name,
+                FeeSchedule.version_code,
+                User.display_name,
+                parent.txn_ref,
+                GatewaySettlement.settlement_ref,
+            )
+            .join(PaymentGateway, Transaction.gateway_id == PaymentGateway.id)
+            .join(FeeSchedule, Transaction.fee_schedule_id == FeeSchedule.id)
+            .join(User, Transaction.owner_user_id == User.id)
+            .outerjoin(parent, Transaction.parent_txn_id == parent.id)
+            .outerjoin(GatewaySettlement, Transaction.settlement_id == GatewaySettlement.id)
+            .where(Transaction.txn_ref.in_(txn_refs))
+            .order_by(Transaction.occurred_at.desc(), Transaction.id.desc())
+        )
+        if owner_user_id is not None:
+            statement = statement.where(Transaction.owner_user_id == owner_user_id)
+        rows = self.db.execute(statement).all()
+        return [
+            (txn, gateway_name, fee_version_code, owner_display_name, parent_txn_ref, settlement_ref)
+            for txn, gateway_name, fee_version_code, owner_display_name, parent_txn_ref, settlement_ref in rows
+        ]

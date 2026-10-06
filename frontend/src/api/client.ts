@@ -1,12 +1,12 @@
 import axios from 'axios'
-import { clearSession, loadSession } from '../auth/session'
+import { getAccessToken, notifyUnauthorized } from '../auth/session'
 
 export const api = axios.create({ baseURL: '/api/v1' })
 
 api.interceptors.request.use((config) => {
-  const session = loadSession()
-  if (session) {
-    config.headers.Authorization = `Bearer ${session.accessToken}`
+  const token = getAccessToken()
+  if (token) {
+    config.headers.Authorization = `Bearer ${token}`
   }
   return config
 })
@@ -14,11 +14,8 @@ api.interceptors.request.use((config) => {
 api.interceptors.response.use(
   (response) => response,
   (error: unknown) => {
-    if (axios.isAxiosError(error) && error.response?.status === 401 && loadSession()) {
-      clearSession()
-      if (window.location.pathname !== '/') {
-        window.location.assign('/')
-      }
+    if (axios.isAxiosError(error) && error.response?.status === 401 && getAccessToken()) {
+      notifyUnauthorized()
     }
     return Promise.reject(error)
   },

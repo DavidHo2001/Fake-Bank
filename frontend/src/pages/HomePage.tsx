@@ -1,141 +1,255 @@
-import { Box, Typography } from '@mui/material'
-import logo from '../assets/DavidBank.png'
-import homeMock from './homeMock.json'
+import { Alert, Box, Button, LinearProgress, TextField, Typography } from '@mui/material'
+import { useEffect, useState } from 'react'
+import { api, errorMessage, type Envelope } from '../api/client'
 
-const cardSx = {
-  border: '1px solid #333',
-  borderRadius: 3,
-  p: 2.5,
-  bgcolor: '#242424',
+type Sample = {
+  id: number
+  source: string
+  ask: string
+  zh_ask: string
+  effectiveAt: string | null
 }
+
+const QUESTIONS: Sample[] = [
+  {
+    id: 1,
+    source: 'RAG',
+    ask: "What were NorthstarPay's percentage rate, fixed fee, and minimum fee on 15 March 2026?",
+    zh_ask: 'NorthstarPay 喺 2026-03-15 嘅收單費率、固定費、最低費係幾多？',
+    effectiveAt: '2026-03-15',
+  },
+  {
+    id: 2,
+    source: 'RAG',
+    ask: "What were NorthstarPay's percentage rate, fixed fee, and minimum fee on 2 April 2026?",
+    zh_ask: 'NorthstarPay 喺 2026-04-02 嘅收單費率、固定費、最低費係幾多？',
+    effectiveAt: '2026-04-02',
+  },
+  {
+    id: 3,
+    source: 'RAG',
+    ask: 'How does NorthstarPay calculate the cross-currency FX markup? May it be added again to the total fee?',
+    zh_ask: 'NorthstarPay 跨幣種 FX markup 點計？可唔可以再加一次落 total fee？',
+    effectiveAt: '2026-03-15',
+  },
+  {
+    id: 4,
+    source: 'SQL',
+    ask: 'What are the total fee and expected net of NSP-FX-0001?',
+    zh_ask: 'NSP-FX-0001 嘅 total fee 同 expected net 係幾多？',
+    effectiveAt: null,
+  },
+  {
+    id: 5,
+    source: 'SQL+RAG',
+    ask: 'Why is the amount received on NSP-VER-0002 lower than on NSP-FX-0001, even though the percentage fee is lower?',
+    zh_ask: '點解 NSP-VER-0002 到手少過 NSP-FX-0001？百分比費明明平咗。',
+    effectiveAt: null,
+  },
+  {
+    id: 6,
+    source: 'SQL+RAG',
+    ask: 'Why did CDG-FEEHIKE-0002 cost more than CDG-FEEHIKE-0001?',
+    zh_ask: '點解 CDG-FEEHIKE-0002 比 CDG-FEEHIKE-0001 貴？',
+    effectiveAt: null,
+  },
+  {
+    id: 7,
+    source: 'SQL',
+    ask: 'Which transaction was charged the minimum fee, and which settled short? Please review NSP-MINFEE-0001 and NSP-SHORT-0001.',
+    zh_ask: '邊筆交易用咗最低收費？邊筆 settled 短咗？請看 NSP-MINFEE-0001 同 NSP-SHORT-0001。',
+    effectiveAt: null,
+  },
+  {
+    id: 8,
+    source: 'SQL+RAG',
+    ask: 'Does HFL-REFUND-0001 return the original percentage fee of 9 HKD?',
+    zh_ask: 'HFL-REFUND-0001 會唔會退返原本 9 HKD 百分比費？',
+    effectiveAt: null,
+  },
+  {
+    id: 9,
+    source: 'SQL+RAG',
+    ask: 'Are failed transactions charged a fee? Compare NSP-FAIL-0001 and CDG-FAIL-0001.',
+    zh_ask: '失敗交易收唔收費？比較 NSP-FAIL-0001 同 CDG-FAIL-0001。',
+    effectiveAt: null,
+  },
+  {
+    id: 10,
+    source: 'No answer',
+    ask: 'Can settlement be made in Bitcoin?',
+    zh_ask: '可唔可以用比特幣結算？',
+    effectiveAt: null,
+  },
+]
 
 export function HomePage() {
-  const users = homeMock.usersByMonth
-  const latest = users[users.length - 1]
-  const first = users[0]
-  const growth = Math.round(((latest.users - first.users) / first.users) * 100)
+  const [selected, setSelected] = useState<number | null>(null)
+  const [language, setLanguage] = useState<'en' | 'zh'>('en')
+  const [question, setQuestion] = useState('')
+  const [effectiveAt, setEffectiveAt] = useState<string | null>(null)
+  const [answer, setAnswer] = useState('')
+  const [error, setError] = useState('')
+  const [loading, setLoading] = useState(false)
+  const [elapsed, setElapsed] = useState(0)
+
+  useEffect(() => {
+    if (!loading) {
+      setElapsed(0)
+      return
+    }
+    const started = Date.now()
+    const timer = window.setInterval(() => {
+      setElapsed(Math.floor((Date.now() - started) / 1000))
+    }, 250)
+    return () => window.clearInterval(timer)
+  }, [loading])
+
+  function wording(sample: Sample) {
+    return language === 'zh' ? sample.zh_ask : sample.ask
+  }
+
+  function choose(sample: Sample) {
+    setSelected(sample.id)
+    setQuestion(wording(sample))
+    setEffectiveAt(sample.effectiveAt)
+    setAnswer('')
+    setError('')
+  }
+
+  function switchLanguage(next: 'en' | 'zh') {
+    setLanguage(next)
+    if (selected == null) return
+    const sample = QUESTIONS.find((item) => item.id === selected)
+    if (sample) setQuestion(next === 'zh' ? sample.zh_ask : sample.ask)
+  }
+
+  async function submit() {
+    const text = question.trim()
+    if (!text) {
+      setError('Select a sample enquiry or enter your own question.')
+      return
+    }
+    setLoading(true)
+    setError('')
+    setAnswer('')
+    try {
+      const response = await api.post<Envelope<string>>('/documents/answer', {
+        question: text,
+        effective_at: effectiveAt,
+      })
+      setAnswer(response.data.data)
+    } catch (err: unknown) {
+      setError(errorMessage(err, 'Could not get an answer'))
+    } finally {
+      setLoading(false)
+    }
+  }
 
   return (
-    <Box
-      sx={{
-        display: 'grid',
-        gridTemplateColumns: { xs: '1fr', md: '300px 1fr' },
-        gap: 3,
-        alignItems: 'start',
-      }}
-    >
-      <Box
-        sx={{
-          bgcolor: '#111',
-          border: '1px solid #333',
-          borderRadius: 3,
-          minHeight: { md: 520 },
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'center',
-          p: 2,
-        }}
-      >
-        <Box component="img" src={logo} alt="David Bank" sx={{ width: '100%', display: 'block' }} />
+    <Box sx={{ minWidth: '100%', mx: 'auto' }}>
+      <Typography variant="h6" sx={{ fontWeight: 700 }}>
+        Fee enquiry
+      </Typography>
+      <Typography sx={{ mt: 1, mb: 3, color: 'text.secondary' }}>
+        Select an enquiry. The question is placed in the field below, where you may edit it before submitting.
+        Enquiries 1 and 2 use the value dates 15 March 2026 and 2 April 2026.
+      </Typography>
+
+      <Box sx={{ display: 'flex', gap: 1, mb: 2 }}>
+        <Button variant={language === 'en' ? 'contained' : 'outlined'} onClick={() => switchLanguage('en')} disabled={loading} sx={{ color: language === 'en' ? '#111' : '#f4f4f4', bgcolor: language === 'en' ? '#f4f4f4' : 'transparent', borderColor: '#555' }}>
+          English
+        </Button>
+        <Button variant={language === 'zh' ? 'contained' : 'outlined'} onClick={() => switchLanguage('zh')} disabled={loading} sx={{ color: language === 'zh' ? '#111' : '#f4f4f4', bgcolor: language === 'zh' ? '#f4f4f4' : 'transparent', borderColor: '#555' }}>
+          中文
+        </Button>
       </Box>
 
-      <Box>
-        <Typography variant="h4" sx={{ fontWeight: 700 }}>
-          David Bank
-        </Typography>
-        <Typography sx={{ mt: 1, maxWidth: 640, color: 'text.secondary' }}>
-          David Bank is a demo merchant bank. It shows how a payment gateway prices a charge — percent
-          fee, fixed fee, minimum fee, FX markup — and where the expected net differs from the settled
-          amount.
-        </Typography>
+      <Box sx={{ display: 'grid', gridTemplateColumns: 'repeat(5, 1fr)', gap: 1.5 }}>
+        {QUESTIONS.map((sample) => (
+          <Button
+            key={sample.id}
+            variant={selected === sample.id ? 'contained' : 'outlined'}
+            onClick={() => choose(sample)}
+            disabled={loading}
+            title={sample.source}
+            sx={{
+              minHeight: 64,
+              fontSize: 20,
+              color: selected === sample.id ? '#111' : '#f4f4f4',
+              borderColor: '#555',
+              bgcolor: selected === sample.id ? '#f4f4f4' : 'transparent',
+            }}
+          >
+            {language === 'en' ? sample.ask : sample.zh_ask}
+          </Button>
+        ))}
+      </Box>
 
-        <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', md: '1fr 1fr' }, gap: 2, mt: 3 }}>
-          <Box sx={cardSx}>
-            <Typography variant="overline" color="text.secondary">
-              Active users
+      <Box sx={{ mt: 3, position: 'relative' }}>
+        <TextField
+          value={question}
+          onChange={(event) => setQuestion(event.target.value)}
+          multiline
+          minRows={3}
+          fullWidth
+          disabled={loading}
+          placeholder="Your enquiry will appear here. You may edit it before submitting."
+        />
+        <Button
+          variant="contained"
+          onClick={() => void submit()}
+          disabled={loading}
+          sx={{ mt: 2, bgcolor: '#f4f4f4', color: '#111' }}
+        >
+          Submit
+        </Button>
+        {loading ? (
+          <Box
+            sx={{
+              mt: 3,
+              p: 3,
+              border: '1px solid #333',
+              borderRadius: 2,
+              bgcolor: '#242424',
+            }}
+          >
+            <Typography sx={{ fontWeight: 700 }}>Preparing your answer</Typography>
+            <Typography variant="body2" sx={{ mt: 0.5, mb: 2, color: 'text.secondary' }}>
+              Checking transactions and fee documents. This usually takes about 30 seconds.
             </Typography>
-            <Typography variant="h3" sx={{ fontWeight: 700, lineHeight: 1.1 }}>
-              {latest.users.toLocaleString()}
+            <LinearProgress
+              variant="determinate"
+              value={Math.min(92, (elapsed / 30) * 92)}
+              sx={{ height: 6, borderRadius: 99, bgcolor: '#333', '& .MuiLinearProgress-bar': { bgcolor: '#f4f4f4' } }}
+            />
+            <Typography variant="caption" sx={{ display: 'block', mt: 1, color: 'text.secondary' }}>
+              {elapsed}s elapsed
             </Typography>
-            <Typography variant="body2" sx={{ color: '#3dd68c', mb: 2 }}>
-              +{growth}% since {first.month}
-            </Typography>
-            <UserChart points={users} />
           </Box>
+        ) : null}
+      </Box>
 
-          <Box sx={cardSx}>
-            <Typography variant="overline" color="text.secondary">
-              Service fee vs other banks
-            </Typography>
-            <Typography variant="body2" sx={{ color: 'text.secondary', mb: 2 }}>
-              Illustrative percent fee. Live rates stay on Fee Schedule.
-            </Typography>
-            <FeeChart rows={homeMock.serviceFeeCompare} />
-          </Box>
+      {error ? (
+        <Alert severity="error" sx={{ mt: 2 }}>
+          {error}
+        </Alert>
+      ) : null}
+
+      {answer ? (
+        <Box
+          sx={{
+            mt: 3,
+            p: 2.5,
+            border: '1px solid #333',
+            borderRadius: 2,
+            bgcolor: '#242424',
+            whiteSpace: 'pre-wrap',
+          }}
+        >
+          {answer}
         </Box>
-      </Box>
-    </Box>
-  )
-}
-
-function UserChart({ points }: { points: { month: string; users: number }[] }) {
-  const width = 320
-  const height = 150
-  const max = Math.max(...points.map((point) => point.users))
-  const min = Math.min(...points.map((point) => point.users))
-  const span = max - min || 1
-  const coords = points.map((point, index) => {
-    const x = 12 + (index / (points.length - 1)) * (width - 24)
-    const y = 16 + (1 - (point.users - min) / span) * (height - 48)
-    return { ...point, x, y }
-  })
-  const line = coords.map((point) => `${point.x},${point.y}`).join(' ')
-  const area = `${coords[0].x},${height - 22} ${line} ${coords[coords.length - 1].x},${height - 22}`
-
-  return (
-    <svg viewBox={`0 0 ${width} ${height}`} width="100%" role="img" aria-label="Users by month">
-      <polygon points={area} fill="#fff" opacity="0.12" />
-      <polyline points={line} fill="none" stroke="#fff" strokeWidth="2.5" />
-      {coords.map((point) => (
-        <g key={point.month}>
-          <circle cx={point.x} cy={point.y} r="3.5" fill="#fff" />
-          <text x={point.x} y={height - 6} textAnchor="middle" fontSize="11" fill="#9a9a9a">
-            {point.month}
-          </text>
-        </g>
-      ))}
-    </svg>
-  )
-}
-
-function FeeChart({ rows }: { rows: { bank: string; percentFee: number }[] }) {
-  const max = Math.max(...rows.map((row) => row.percentFee))
-
-  return (
-    <Box sx={{ display: 'grid', gap: 1.5 }}>
-      {rows.map((row) => {
-        const ours = row.bank === 'David Bank'
-        return (
-          <Box key={row.bank}>
-            <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 0.5 }}>
-              <Typography variant="body2" sx={{ fontWeight: ours ? 700 : 500 }}>
-                {row.bank}
-              </Typography>
-              <Typography variant="body2">{row.percentFee.toFixed(1)}%</Typography>
-            </Box>
-            <Box sx={{ height: 8, bgcolor: '#333', borderRadius: 99 }}>
-              <Box
-                sx={{
-                  width: `${(row.percentFee / max) * 100}%`,
-                  height: '100%',
-                  borderRadius: 99,
-                  bgcolor: ours ? '#f4f4f4' : '#666',
-                }}
-              />
-            </Box>
-          </Box>
-        )
-      })}
+      ) : null}
     </Box>
   )
 }
