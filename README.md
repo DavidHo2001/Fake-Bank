@@ -30,6 +30,14 @@ The model does not run SQL and does not choose which rows to read.
 | Unsupported currency | Bitcoin settlement. | Cannot confirm. HarborFlow stays HKD. |
 | Embedded instruction | A simplified-Chinese order to ignore the rules. | Traditional Chinese. Bitcoin stays unconfirmed. |
 
+## Known limitations
+
+The fee documents use the golden transactions as worked examples. `NSP-VER-0002` is written up with expected net 102.7882 USD. `NSP-FX-0001`, `CDG-FEEHIKE-0001`, `CDG-FEEHIKE-0002`, and `HFL-REFUND-0001` are in the same documents, with their fees.
+
+Those chunks are shared. They are not filtered by merchant.
+
+If the question names a reference the caller does not own, SQL rejects the whole question. If the question names no reference, retrieval can still return the example, and the answer can repeat those figures. The prompt says not to treat a document example as the caller's own transaction. That is an instruction to the model, not a row filter.
+
 ## Try this
 
 Log in as East Merchant and ask why `CDG-FEEHIKE-0002` cost more than `CDG-FEEHIKE-0001`. The two payments sit on different fee-schedule versions.
