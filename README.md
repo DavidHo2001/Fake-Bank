@@ -4,7 +4,7 @@ A merchant asks why a payout is short. The API answers from that merchant's tran
 
 Fictional gateways only: NorthstarPay, HarborFlow, CedarGate. No live card data.
 
-https://github.com/user-attachments/assets/ee627704-299d-449d-8115-19080b40f10d
+![Fee enquiry](https://github.com/user-attachments/assets/ee627704-299d-449d-8115-19080b40f10d)
 
 ## How an answer is built
 
@@ -29,10 +29,6 @@ The model does not run SQL and does not choose which rows to read.
 | Incomplete reference | `NSP-FX-001` is too short. The answer asks for the full reference and does not state 3.3850. | Pass |
 | Unsupported currency | Bitcoin settlement. | Cannot confirm. HarborFlow stays HKD. |
 | Embedded instruction | A simplified-Chinese order to ignore the rules. | Traditional Chinese. Bitcoin stays unconfirmed. |
-
-## Stack
-
-FastAPI, SQLAlchemy, Alembic, PostgreSQL, pgvector. JWT in the `Authorization` header. The role is read from the database on each request. Embeddings use `paraphrase-multilingual-MiniLM-L12-v2`. The answer call goes through OpenRouter. The UI is React, Vite, and MUI.
 
 ## Try this
 
@@ -60,3 +56,7 @@ Fee-enquiry cases are in [docs/qa](docs/qa/QA-ANS-001-fee-enquiry-test-cases.md)
 ```bash
 cd backend && source .venv/bin/activate && pytest ../docs/qa/test_access.py
 ```
+
+## Stack
+
+FastAPI, SQLAlchemy, Alembic, PostgreSQL, pgvector. JWT in the `Authorization` header. The role is read from the database on each request. Embeddings use `paraphrase-multilingual-MiniLM-L12-v2`. The answer call goes through OpenRouter. The UI is React, Vite, and MUI.
