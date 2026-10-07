@@ -30,13 +30,28 @@ class DocumentService:
             )
         return Page(items=documents, total=total, page=page, page_size=page_size)
         
-    def search_similar_chunks(self, question: str, effective_at_dates: list[date], limit: int = 5
-        ) -> list[ChunkSearchResult]:
+    def search_similar_chunks(
+        self,
+        question: str,
+        effective_at_dates: list[date],
+        limit: int = 5,
+        scopes: list[tuple[str, str]] | None = None,
+    ) -> list[ChunkSearchResult]:
         model = self.embedding_model
         question_vector = model.encode([question], normalize_embeddings=True)[0].tolist()
         results: list[ChunkSearchResult] = []
         for effective_at in effective_at_dates:
-            results.extend(self.repository.search_similar_chunks(question_vector, effective_at, limit))
+            if not scopes:
+                results.extend(self.repository.search_similar_chunks(question_vector, effective_at, limit))
+                continue
+            for gateway_name, version_code in scopes:
+                results.extend(self.repository.search_similar_chunks(
+                    question_vector,
+                    effective_at,
+                    limit,
+                    gateway_name,
+                    version_code,
+                ))
 
         seen: set[tuple[str, str]] = set()
         unique: list[ChunkSearchResult] = []

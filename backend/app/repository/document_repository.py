@@ -24,7 +24,13 @@ class DocumentRepository:
         rows = self.db.execute(statement).all()
         return [(document, gateway_name) for document, gateway_name in rows], total
 
-    def search_similar_chunks(self, question_vector: list[float], effective_at: date, limit: int = 5
+    def search_similar_chunks(
+        self,
+        question_vector: list[float],
+        effective_at: date,
+        limit: int = 5,
+        gateway_name: str | None = None,
+        version_code: str | None = None,
     ) -> list[ChunkSearchResult]:
         distance = DocumentChunk.embedding.cosine_distance(question_vector)
         statement = (
@@ -36,14 +42,20 @@ class DocumentRepository:
                 (1 - distance).label("cosine_similarity"),
             )
             .join(Document, Document.id == DocumentChunk.document_id)
-            .where(
-                DocumentChunk.embedding.is_not(None),
-                Document.effective_from <= effective_at,
-                (Document.effective_to.is_(None)) | (Document.effective_to >= effective_at),
-            )
-            .order_by(distance)
-            .limit(limit)
         )
+        filters = [
+            DocumentChunk.embedding.is_not(None),
+            Document.effective_from <= effective_at,
+            (Document.effective_to.is_(None)) | (Document.effective_to >= effective_at),
+        ]
+        if gateway_name is not None and version_code is not None:
+            statement = statement.join(PaymentGateway, Document.gateway_id == PaymentGateway.id)
+            filters.extend([
+                PaymentGateway.name == gateway_name,
+                Document.version_code == version_code,
+                Document.doc_type == "fee_schedule",
+            ])
+        statement = statement.where(*filters).order_by(distance).limit(limit)
         rows = self.db.execute(statement).all()
         return [ChunkSearchResult(
             doc_code=row.doc_code,

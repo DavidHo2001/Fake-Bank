@@ -24,7 +24,7 @@ async def lifespan(_app: FastAPI):
         close_http_client()
 
 
-app = FastAPI(title="David Bank", version="1.0.0", docs_url=None, redoc_url=None, lifespan=lifespan)
+app = FastAPI(title="David Bank", version="1.0.0", lifespan=lifespan)
 
 app.add_middleware(
     CORSMiddleware,

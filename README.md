@@ -1,88 +1,62 @@
-# Fake-Bank
+# David Bank
 
-backend:
-0. python3 -m venv .venv
-1. source .venv/bin/activate
-2. python -m pip install -r requirements.txt
-3. copy .env.example as .env, fill DATABASE_URL and JWT_SECRET
-4. alembic upgrade head
-5. uvicorn app.main:app --reload
+A merchant asks why a payout is short. The API answers from that merchant's transactions and the fee document in force on that date, and says when the evidence is not enough.
 
-frontend:
-npm install
-npm run dev
+Fictional gateways only: NorthstarPay, HarborFlow, CedarGate. No live card data.
 
-DB:
+https://github.com/user-attachments/assets/ee627704-299d-449d-8115-19080b40f10d
 
-**0. Import every model in `backend/alembic/env.py`**
+## How an answer is built
 
-Alembic only sees imported classes. A missing new model is skipped. A missing old model becomes `drop_table`.
+`POST /api/v1/documents/answer`
 
-e.g.
+1. Read transaction references and dates from the question. A date in the question wins. Otherwise the API uses `effective_at`, then each transaction's Hong Kong civil date, then today.
+2. Load transactions in SQL. A merchant sees only their own rows. One reference that is missing or belongs to someone else rejects the whole question.
+3. Search fee-schedule chunks in pgvector, limited to that transaction's gateway, fee version, and effective date.
+4. Send those rows, the gateway settlement currencies, and the chunks to the model. The prompt treats them as evidence. The answer cites `doc_code` and `section_path`.
 
-```python
-from app.models.transaction import Transaction  # noqa: F401
-```
+The model does not run SQL and does not choose which rows to read.
 
-**1. According to SQLAlchemy models, generate a Python migration file**
+## What the cases check
 
-PostgreSQL extensions need to be added manually.
+53 manual cases, 0 fail, run on 7 October 2026 against `qwen/qwen3.8-flash`. Figures are recomputed from the seed, not from the model. Full record: [docs/qa](docs/qa/QA-ANS-001-fee-enquiry-test-cases.md).
 
-```bash
-alembic revision --autogenerate -m "migration file title as u like"
-```
+| Case | Check | Result |
+|---|---|---|
+| CedarGate fee hike | `CDG-FEEHIKE-0002` costs more because the fixed fee rose from 2.00 USD to 3.50 USD. Totals 3.0000 and 4.5000. | Pass |
+| Two NorthstarPay versions | `NSP-VER-0002` net 102.7882 USD versus `NSP-FX-0001` net 102.9950 USD. Markup 200 bps versus 150 bps. | Pass |
+| Another merchant's rows | North asks about East's CedarGate pair. | HTTP 400. No fee figures. |
+| Incomplete reference | `NSP-FX-001` is too short. The answer asks for the full reference and does not state 3.3850. | Pass |
+| Unsupported currency | Bitcoin settlement. | Cannot confirm. HarborFlow stays HKD. |
+| Embedded instruction | A simplified-Chinese order to ignore the rules. | Traditional Chinese. Bitcoin stays unconfirmed. |
 
-**1.1 Add these below `def upgrade`:**
+## Stack
 
-```python
-def upgrade():
-    op.execute("CREATE EXTENSION IF NOT EXISTS citext")
-    op.execute("CREATE EXTENSION IF NOT EXISTS pgcrypto")
-    op.execute("CREATE EXTENSION IF NOT EXISTS vector")
+FastAPI, SQLAlchemy, Alembic, PostgreSQL, pgvector. JWT in the `Authorization` header. The role is read from the database on each request. Embeddings use `paraphrase-multilingual-MiniLM-L12-v2`. The answer call goes through OpenRouter. The UI is React, Vite, and MUI.
 
-    # op.create_table(...) ...
-```
+## Try this
 
-**2. Update DB to latest migration** (e.g. `8948f9481278_create_user_tb.py`)
+Log in as East Merchant and ask why `CDG-FEEHIKE-0002` cost more than `CDG-FEEHIKE-0001`. The two payments sit on different fee-schedule versions.
 
-```bash
-alembic upgrade head
-```
+North Merchant can ask the same style of question about `NSP-VER-0002` and `NSP-FX-0001`. East cannot see those references.
 
-**3. Check current applied migration version**
+| Email | Password | Role |
+|---|---|---|
+| `merchant.east@fakebank.local` | `LocalEast#2026` | user |
+| `merchant.north@fakebank.local` | `LocalNorth#2026` | user |
+| `admin@fakebank.local` | `LocalAdmin#2026` | admin |
 
-```bash
-alembic current
-```
+Local demo passwords. Do not reuse them.
 
-**4. A change in an already upgraded migration will not be re-run**
+## Run
 
-You need to manually execute the query in the DB.
+[Setup](docs/setup.md)
 
-**OR generate another migration and upgrade it**
+- UI: http://localhost:5173
+- API docs: http://localhost:8000/docs
+
+Fee-enquiry cases are in [docs/qa](docs/qa/QA-ANS-001-fee-enquiry-test-cases.md). Access checks:
 
 ```bash
-alembic revision --autogenerate -m "a new migration"
-```
-
-**5. Connect to the PostgreSQL DB and run seed**
-
-```sql
-sql/seed/01_reference_seed.sql
-```
-
-**6. Generate about 150 extra transactions**
-
-Uses `fee_schedule_tb` and `fx_mid_rate_tb`. Does not change the 10 golden rows. Re-run deletes `%-GEN-%` and `NSP-BOUNDARY-0001`, then inserts the same rows again (`random.seed(42)`).
-
-```bash
-cd backend && source .venv/bin/activate && python ../scripts/generate_data.py
-```
-
-**7. Ingest Markdown into chunks. Do not call an LLM.**
-
-Reads each `document_tb.source_path`, splits on `##`, and replaces that document's rows in `document_chunk_tb`.
-
-```bash
-cd backend && source .venv/bin/activate && python ../scripts/ingest_docs.py
+cd backend && source .venv/bin/activate && pytest ../docs/qa/test_access.py
 ```

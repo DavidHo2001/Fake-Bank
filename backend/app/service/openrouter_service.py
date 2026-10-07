@@ -1,9 +1,17 @@
+import logging
+
 import httpx
 import json
+from fastapi import HTTPException
+
 from app.core.config import settings
-from app.read_models.chunk_search_result import ChunkSearchResult
-from app.core.openrouter_client import get_http_client
 from app.dto.transaction_dto import TransactionDto
+from app.read_models.chunk_search_result import ChunkSearchResult
+from app.read_models.gateway_settlement_currency import GatewaySettlementCurrency
+
+logger = logging.getLogger(__name__)
+
+
 class OpenRouterService:
     def __init__(self, http_client: httpx.Client) -> None:
         self.http_client = http_client
@@ -13,10 +21,11 @@ class OpenRouterService:
         question: str,
         chunks: list[ChunkSearchResult],
         transactions: list[TransactionDto],
+        gateways: list[GatewaySettlementCurrency],
     ) -> str:
         system_prompt = """
     You explain transaction results using only the supplied authorized
-    transaction records and document chunks.
+    transaction records, gateway settlement currencies, and document chunks.
 
     LANGUAGE:
     - Answer primarily in the language of the user's question.
@@ -41,6 +50,9 @@ class OpenRouterService:
     - If evidence is insufficient or conflicting, state what cannot be
     confirmed. Use "Unable to confirm" in English or "無法確認" in Chinese.
     - You may answer supported parts, but do not speculate about unsupported parts.
+    - When a transaction record includes settled_amount and expected_net, state both figures.
+    - Use the supplied gateway list for each gateway's settlement currency.
+    - A document's settlement currency applies only to that gateway. NorthstarPay USD does not cover HarborFlow HKD.
 
     TRANSACTION REFERENCES:
     - A complete transaction reference has 3 ASCII letters, a hyphen,
@@ -76,6 +88,10 @@ class OpenRouterService:
                 txn.model_dump(mode="json")
                 for txn in transactions
             ],
+            "gateways": [
+                {"name": gateway.name, "settlement_currency": gateway.settlement_currency}
+                for gateway in gateways
+            ],
             "document_chunks": [
                 {
                     "doc_code": chunk.doc_code,
@@ -102,9 +118,13 @@ class OpenRouterService:
                     },
                 ],
             },
-            timeout=30,
+            timeout=45,
         )
-        response.raise_for_status()
+        try:
+            response.raise_for_status()
+        except httpx.HTTPStatusError as exc:
+            logger.warning("OpenRouter request failed: %s", exc.response.status_code)
+            raise HTTPException(status_code=502, detail="The answer service is unavailable") from exc
 
         content = response.json()["choices"][0]["message"].get("content")
         if not isinstance(content, str) or not content.strip():

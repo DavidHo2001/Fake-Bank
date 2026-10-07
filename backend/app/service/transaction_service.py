@@ -6,14 +6,16 @@ from fastapi import HTTPException, status
 from app.dto.generic import Page
 from app.dto.transaction_dto import TransactionDto
 from app.models.transaction import Transaction
+from app.read_models.gateway_settlement_currency import GatewaySettlementCurrency
 from app.repository.transaction_repository import TransactionRepository
 
 import re
 
-# Match transaction refs (case-insensitive): 3 letters, "-", one or more
-# letters/digits, "-", and 4–6 digits (e.g. NSP-VER-0002 or nsp-ver-0002).
+# Case-insensitive ref: 3 letters, "-", letters/digits, "-", 4–6 digits.
+# A letter may follow the digits, so NSP-FX-0001NSP-VER-0002 still yields the first ref.
+# More digits, or a digit before the second ref, do not match.
 TXN_REF = re.compile(
-    r"\b[A-Z]{3}-[A-Z0-9]+-\d{4,6}\b",
+    r"(?<![A-Za-z0-9])[A-Z]{3}-[A-Z0-9]+-\d{4,6}(?![0-9])",
     re.IGNORECASE,
 )
 
@@ -52,6 +54,9 @@ class TransactionService:
 
         transactions = [map_to_transaction_dto(*row) for row in rows]
         return Page(items=transactions, total=total, page=page, page_size=page_size)
+
+    def list_settlement_currencies(self) -> list[GatewaySettlementCurrency]:
+        return self.repository.list_settlement_currencies()
 
     def get_transaction_from_question(self, question: str, user_id: int, role: str) -> list[TransactionDto]:
         owner_user_id = None if role == "admin" else user_id

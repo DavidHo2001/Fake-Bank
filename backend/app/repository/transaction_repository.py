@@ -8,6 +8,7 @@ from app.models.gateway_settlement import GatewaySettlement
 from app.models.payment_gateway import PaymentGateway
 from app.models.transaction import Transaction
 from app.models.user import User
+from app.read_models.gateway_settlement_currency import GatewaySettlementCurrency
 
 TransactionRow = tuple[Transaction, str, str, str, str | None, str | None]
 
@@ -15,6 +16,17 @@ TransactionRow = tuple[Transaction, str, str, str, str | None, str | None]
 class TransactionRepository:
     def __init__(self, db: Session) -> None:
         self.db = db
+
+    def list_settlement_currencies(self) -> list[GatewaySettlementCurrency]:
+        rows = self.db.execute(
+            select(PaymentGateway.name, PaymentGateway.settlement_currency)
+            .where(PaymentGateway.is_active.is_(True))
+            .order_by(PaymentGateway.name)
+        ).all()
+        return [
+            GatewaySettlementCurrency(name=name, settlement_currency=currency.strip())
+            for name, currency in rows
+        ]
 
     def find_page(
         self,

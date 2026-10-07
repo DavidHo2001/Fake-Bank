@@ -7,7 +7,6 @@ from app.dto.user_dto import UserDto
 
 class AuthService:
     def __init__(self, user_repository: UserRepository):
-        #just like spring @Autowired to inject the dependency
         self.user_repository = user_repository
 
     def login(self, email: str, password: str) -> LoginResponse:
